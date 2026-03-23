@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Brix — Real-time breakout signal tracker for Bybit futures & spot. Free Android app.">
+<title>Brix — Signal Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg0:      #080b0f;
+    --bg1:      #0e1117;
+    --bg2:      #141920;
+    --bg3:      #1c2330;
+    --fg0:      #e8edf5;
+    --fg1:      #9ba8b8;
+    --fg2:      #4e5a6e;
+    --green:    #00e676;
+    --green-bg: rgba(0,230,118,0.10);
+    --green-glow: rgba(0,230,118,0.22);
+    --red:      #ff4f6e;
+    --accent:   #00e676;
+    --font:     'Inter', system-ui, sans-serif;
+    --display:  'Inter', system-ui, sans-serif;
+    --mono:     'JetBrains Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+    font-family: var(--font);
+    background: var(--bg0);
+    color: var(--fg0);
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+
+/* ── Ambient background ── */
+body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+        radial-gradient(ellipse 70% 50% at 50% -10%, rgba(0,230,118,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 90% 80%, rgba(0,230,118,0.04) 0%, transparent 60%);
+}
+
+/* ── Grid texture ── */
+body::after {
+    content: '';
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.014) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.014) 1px, transparent 1px);
+    background-size: 48px 48px;
+}
+
+.z1 { position: relative; z-index: 1; }
+
+/* ── NAV ── */
+nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 64px;
+    background: rgba(8,11,15,0.82);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center;
+    padding: 0 clamp(20px, 5vw, 80px);
+    gap: 16px;
+}
+.nav-logo {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none;
+}
+.nav-logo-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--green-bg);
+    border: 1px solid rgba(0,230,118,0.3);
+    display: flex; align-items: center; justify-content: center;
+}
+.nav-logo-icon svg { width: 18px; height: 18px; }
+.nav-logo-name {
+    font-family: var(--display);
+    font-size: 18px; font-weight: 700;
+    color: var(--fg0); letter-spacing: -0.3px;
+}
+.nav-spacer { flex: 1; }
+.nav-badge {
+    font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: 20px;
+    background: var(--green-bg);
+    border: 1px solid rgba(0,230,118,0.25);
+    color: var(--green);
+    display: flex; align-items: center; gap: 5px;
+}
+.nav-badge::before {
+    content: '';
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.nav-dl {
+    font-family: var(--font);
+    font-size: 13px; font-weight: 600;
+    padding: 8px 18px; border-radius: 8px;
+    background: var(--green); color: #000;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 12px var(--green-glow);
+}
+.nav-dl:hover { opacity: 0.85; transform: translateY(-1px); }
+
+/* ── HERO ── */
+.hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: clamp(100px, 15vw, 160px) clamp(20px, 5vw, 80px) 80px;
+}
+
+.hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px; font-weight: 500;
+    color: var(--green);
+    background: var(--green-bg);
+    border: 1px solid rgba(0,230,118,0.2);
+    padding: 6px 14px; border-radius: 20px;
+    margin-bottom: 32px;
+    letter-spacing: 0.5px;
+    animation: fadeUp 0.6s ease both;
+}
+
+.hero-title {
+    font-family: var(--display);
+    font-size: clamp(48px, 8vw, 96px);
+    font-weight: 800;
+    line-height: 1.0;
+    letter-spacing: -2px;
+    color: var(--fg0);
+    margin-bottom: 24px;
+    animation: fadeUp 0.6s 0.1s ease both;
+}
+.hero-title .accent {
+    color: var(--green);
+    position: relative;
+}
+.hero-title .accent::after {
+    content: '';
+    position: absolute; bottom: 4px; left: 0; right: 0;
+    height: 3px; border-radius: 2px;
+    background: var(--green);
+    opacity: 0.4;
+}
+
+.hero-sub {
+    font-size: clamp(16px, 2vw, 20px);
+    color: var(--fg1);
+    font-weight: 400;
+    line-height: 1.6;
+    max-width: 560px;
+    margin: 0 auto 48px;
+    animation: fadeUp 0.6s 0.2s ease both;
+}
+
+.hero-actions {
+    display: flex; align-items: center; justify-content: center;
+    gap: 14px; flex-wrap: wrap;
+    animation: fadeUp 0.6s 0.3s ease both;
+}
+
+.btn-primary {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 16px 32px; border-radius: 14px;
+    background: var(--green); color: #000;
+    font-family: var(--font); font-size: 16px; font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 4px 32px var(--green-glow);
+    transition: all 0.2s ease;
+}
+.btn-primary:hover { opacity: 0.88; transform: translateY(-2px); box-shadow: 0 8px 40px var(--green-glow); }
+.btn-primary:active { transform: scale(0.97); }
+.btn-primary svg { width: 20px; height: 20px; }
+
+.btn-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 16px 28px; border-radius: 14px;
+    background: transparent; color: var(--fg1);
+    font-family: var(--font); font-size: 15px; font-weight: 600;
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.2s ease;
+}
+.btn-secondary:hover { background: var(--bg2); color: var(--fg0); border-color: rgba(255,255,255,0.18); }
+
+.hero-note {
+    font-size: 12px; color: var(--fg2);
+    margin-top: 20px;
+    animation: fadeUp 0.6s 0.4s ease both;
+}
+
+/* ── MOCKUP ── */
+.mockup-wrap {
+    margin-top: 80px;
+    position: relative;
+    animation: fadeUp 0.8s 0.5s ease both;
+    max-width: 900px; width: 100%;
+}
+.mockup-glow {
+    position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+    width: 500px; height: 200px;
+    background: radial-gradient(ellipse, rgba(0,230,118,0.12) 0%, transparent 70%);
+    pointer-events: none;
+}
+.mockup-phone {
+    width: 260px; margin: 0 auto;
+    background: var(--bg1);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 32px;
+    padding: 12px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+    position: relative; z-index: 1;
+}
+.mockup-screen {
+    background: var(--bg0);
+    border-radius: 24px;
+    overflow: hidden;
+    padding: 14px;
+}
+.mockup-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+}
+.mockup-brand {
+    display: flex; align-items: center; gap: 7px;
+}
+.mockup-logo-sm {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: var(--green-bg); border: 1px solid rgba(0,230,118,0.3);
+    display: flex; align-items: center; justify-content: center;
+}
+.mockup-logo-sm svg { width: 13px; height: 13px; }
+.mockup-name { font-size: 13px; font-weight: 700; }
+.mockup-live {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 9px; color: var(--green); font-weight: 600;
+    font-family: var(--mono);
+}
+.mockup-live::before {
+    content: '';
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+}
+.mockup-stats {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px; margin-bottom: 10px;
+}
+.mockup-stat {
+    background: var(--bg2); border-radius: 8px; padding: 7px 8px;
+}
+.mockup-stat-lbl { font-size: 7px; color: var(--fg2); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+.mockup-stat-val { font-family: var(--mono); font-size: 16px; font-weight: 600; letter-spacing: -0.5px; }
+.mockup-stat-val.g { color: var(--green); }
+.mockup-stat-val.r { color: var(--red); }
+
+.mockup-card {
+    background: var(--bg1); border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.05);
+    overflow: hidden; margin-bottom: 7px;
+}
+.mockup-card-bar { height: 2px; }
+.mockup-card-bar.buy  { background: linear-gradient(90deg, var(--green), rgba(0,230,118,0.2)); }
+.mockup-card-bar.sell { background: linear-gradient(90deg, var(--red), rgba(255,79,110,0.2)); }
+.mockup-card-body { padding: 8px 9px; }
+.mockup-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.mockup-coin-icon {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--bg3); overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.07);
+    flex-shrink: 0;
+}
+.mockup-coin-icon img { width: 22px; height: 22px; }
+.mockup-sym { font-size: 11px; font-weight: 700; flex: 1; }
+.mockup-badges { display: flex; gap: 3px; }
+.mockup-badge {
+    font-size: 7px; font-weight: 700; text-transform: uppercase;
+    padding: 2px 5px; border-radius: 3px;
+}
+.mockup-badge.buy  { background: var(--green-bg); color: var(--green); }
+.mockup-badge.sell { background: rgba(255,79,110,0.1); color: var(--red); }
+.mockup-badge.tf   { background: var(--bg3); color: var(--fg1); }
+.mockup-price-row {
+    display: flex; gap: 5px;
+}
+.mockup-pbox {
+    flex: 1; background: var(--bg2); border-radius: 5px; padding: 5px 6px;
+}
+.mockup-plbl { font-size: 6px; color: var(--fg2); font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+.mockup-pval { font-family: var(--mono); font-size: 9px; font-weight: 600; }
+.mockup-pval.g { color: var(--green); }
+.mockup-pchange { font-family: var(--mono); font-size: 7px; font-weight: 600; margin-top: 1px; }
+.mockup-pchange.up   { color: var(--green); }
+.mockup-pchange.down { color: var(--red); }
+
+/* ── FEATURES ── */
+.section {
+    padding: clamp(80px, 10vw, 140px) clamp(20px, 5vw, 80px);
+    max-width: 1200px; margin: 0 auto;
+}
+
+.section-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px; font-weight: 600;
+    color: var(--green); text-transform: uppercase; letter-spacing: 2px;
+    margin-bottom: 12px;
+}
+
+.section-title {
+    font-family: var(--display);
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 800; letter-spacing: -1px;
+    line-height: 1.1;
+    margin-bottom: 16px;
+}
+
+.section-sub {
+    font-size: 17px; color: var(--fg1);
+    line-height: 1.65; max-width: 480px;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 56px;
+}
+
+.feat-card {
+    background: var(--bg1);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 20px;
+    padding: 28px 28px 32px;
+    transition: all 0.25s ease;
+    animation: fadeUp 0.6s ease both;
+}
+.feat-card:hover {
+    border-color: rgba(0,230,118,0.2);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
+
+.feat-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--green-bg);
+    border: 1px solid rgba(0,230,118,0.2);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+}
+.feat-icon svg { width: 22px; height: 22px; }
+
+.feat-title {
+    font-family: var(--display);
+    font-size: 20px; font-weight: 700;
+    letter-spacing: -0.3px; margin-bottom: 10px;
+}
+
+.feat-desc {
+    font-size: 14px; color: var(--fg1);
+    line-height: 1.65;
+}
+
+/* ── SIGNAL TYPES ── */
+.signals-section {
+    padding: clamp(60px, 8vw, 100px) clamp(20px, 5vw, 80px);
+    background: var(--bg1);
+    border-top: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.signals-inner { max-width: 1200px; margin: 0 auto; }
+
+.signal-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px; margin-top: 48px;
+}
+
+.signal-demo {
+    background: var(--bg0); border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+}
+.signal-demo-bar { height: 3px; }
+.signal-demo-bar.buy  { background: linear-gradient(90deg, var(--green), rgba(0,230,118,0.2)); }
+.signal-demo-bar.sell { background: linear-gradient(90deg, var(--red),   rgba(255,79,110,0.2)); }
+.signal-demo-body { padding: 16px; }
+.signal-demo-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.signal-demo-coin {
+    width: 36px; height: 36px; border-radius: 50%; overflow: hidden;
+    background: var(--bg2); border: 1px solid rgba(255,255,255,0.07);
+    flex-shrink: 0;
+}
+.signal-demo-coin img { width: 36px; height: 36px; }
+.signal-demo-sym { font-size: 15px; font-weight: 700; }
+.signal-demo-badges { display: flex; gap: 4px; margin-top: 4px; }
+.signal-demo-badge {
+    font-size: 8px; font-weight: 700; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px;
+}
+.sdb-buy  { background: var(--green-bg); color: var(--green); }
+.sdb-sell { background: rgba(255,79,110,0.1); color: var(--red); }
+.sdb-tf   { background: var(--bg3); color: var(--fg1); }
+.sdb-fut  { background: rgba(108,143,255,0.12); color: #6c8fff; }
+
+.signal-demo-price {
+    display: flex; gap: 8px;
+}
+.sdp-box {
+    flex: 1; background: var(--bg2); border-radius: 7px; padding: 8px 10px;
+}
+.sdp-lbl { font-size: 8px; color: var(--fg2); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+.sdp-val { font-family: var(--mono); font-size: 14px; font-weight: 600; }
+.sdp-val.buy  { color: var(--green); }
+.sdp-val.sell { color: var(--red); }
+.sdp-chg { font-family: var(--mono); font-size: 11px; font-weight: 600; margin-top: 2px; }
+.sdp-chg.up   { color: var(--green); }
+.sdp-chg.down { color: var(--red); }
+
+/* ── STATS ── */
+.stats-band {
+    padding: clamp(60px, 8vw, 100px) clamp(20px, 5vw, 80px);
+    max-width: 1200px; margin: 0 auto;
+}
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 2px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 20px; overflow: hidden;
+}
+.stat-cell {
+    background: var(--bg1);
+    padding: 36px 32px;
+    text-align: center;
+}
+.stat-cell-num {
+    font-family: var(--display);
+    font-size: 44px; font-weight: 700;
+    letter-spacing: -1.5px; line-height: 1;
+    color: var(--green);
+    margin-bottom: 8px;
+}
+.stat-cell-lbl {
+    font-size: 13px; color: var(--fg1); font-weight: 500;
+}
+
+/* ── CTA ── */
+.cta-section {
+    padding: clamp(80px, 10vw, 140px) clamp(20px, 5vw, 80px);
+    text-align: center;
+}
+.cta-inner {
+    max-width: 640px; margin: 0 auto;
+    background: var(--bg1);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 28px;
+    padding: clamp(48px, 6vw, 80px) clamp(32px, 4vw, 64px);
+    position: relative; overflow: hidden;
+}
+.cta-inner::before {
+    content: '';
+    position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+    width: 300px; height: 200px;
+    background: radial-gradient(ellipse, rgba(0,230,118,0.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+.cta-title {
+    font-family: var(--display);
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 700; letter-spacing: -0.8px;
+    margin-bottom: 14px;
+}
+.cta-sub {
+    font-size: 16px; color: var(--fg1); line-height: 1.6;
+    margin-bottom: 36px;
+}
+.cta-btn {
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 18px 40px; border-radius: 16px;
+    background: var(--green); color: #000;
+    font-family: var(--font); font-size: 17px; font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 6px 40px var(--green-glow);
+    transition: all 0.2s ease;
+}
+.cta-btn:hover { opacity: 0.88; transform: translateY(-2px); }
+.cta-btn:active { transform: scale(0.97); }
+.cta-btn svg { width: 22px; height: 22px; }
+.cta-note {
+    font-size: 12px; color: var(--fg2); margin-top: 16px;
+}
+.cta-note a { color: var(--fg1); text-decoration: underline; }
+
+/* ── DISCLAIMER ── */
+.disclaimer {
+    padding: 24px clamp(20px, 5vw, 80px);
+    background: var(--bg1);
+    border-top: 1px solid rgba(255,255,255,0.04);
+}
+.disclaimer-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: flex-start; gap: 12px;
+}
+.disc-icon {
+    width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+    color: var(--fg2);
+}
+.disclaimer p {
+    font-size: 12px; color: var(--fg2); line-height: 1.6;
+}
+
+/* ── FOOTER ── */
+footer {
+    padding: 32px clamp(20px, 5vw, 80px);
+    border-top: 1px solid rgba(255,255,255,0.04);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+    max-width: 100%;
+}
+.footer-brand {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--display);
+    font-size: 15px; font-weight: 800;
+    color: var(--fg0);
+}
+.footer-copy {
+    font-size: 12px; color: var(--fg2);
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Scroll reveal */
+.reveal {
+    opacity: 0; transform: translateY(24px);
+    transition: opacity 0.65s ease, transform 0.65s ease;
+}
+.reveal.visible {
+    opacity: 1; transform: translateY(0);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 640px) {
+    .nav-badge { display: none; }
+    .hero-actions { flex-direction: column; align-items: stretch; }
+    .btn-primary, .btn-secondary { justify-content: center; }
+    .stat-cell-num { font-size: 36px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    footer { flex-direction: column; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="z1">
+    <a href="#" class="nav-logo">
+        <div class="nav-logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+        </div>
+        <span class="nav-logo-name">Brix</span>
+    </a>
+    <div class="nav-spacer"></div>
+    <div class="nav-badge">Live Signals</div>
+    <a href="https://github.com/suuf24/brix/raw/refs/heads/main/brix.apk" class="nav-dl">
+        Download APK
+    </a>
+</nav>
+
+<!-- HERO -->
+<section class="hero z1">
+    <div class="hero-eyebrow">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        Real-time Breakout Signals
+    </div>
+
+    <h1 class="hero-title">
+        Trade smarter<br>with <span class="accent">Brix</span>
+    </h1>
+
+    <p class="hero-sub">
+        Real-time BUY &amp; SELL signals for Bybit Futures and Spot. Powered by a proprietary detection algorithm. Free, fast, and always on.
+    </p>
+
+    <div class="hero-actions">
+        <a href="https://github.com/suuf24/brix/raw/refs/heads/main/brix.apk" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download for Android
+        </a>
+
+    </div>
+
+    <p class="hero-note">Free to download · Android 7.0+ · No sign-up required</p>
+
+    <!-- Phone mockup -->
+    <div class="mockup-wrap">
+        <div class="mockup-glow"></div>
+        <div class="mockup-phone">
+            <div class="mockup-screen">
+                <!-- Header -->
+                <div class="mockup-header">
+                    <div class="mockup-brand">
+                        <div class="mockup-logo-sm">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                            </svg>
+                        </div>
+                        <span class="mockup-name">Brix</span>
+                    </div>
+                    <div class="mockup-live">Live</div>
+                </div>
+                <!-- Stats -->
+                <div class="mockup-stats">
+                    <div class="mockup-stat">
+                        <div class="mockup-stat-lbl">Signals</div>
+                        <div class="mockup-stat-val">12</div>
+                    </div>
+                    <div class="mockup-stat">
+                        <div class="mockup-stat-lbl">BUY</div>
+                        <div class="mockup-stat-val g">7</div>
+                    </div>
+                    <div class="mockup-stat">
+                        <div class="mockup-stat-lbl">SELL</div>
+                        <div class="mockup-stat-val r">5</div>
+                    </div>
+                </div>
+                <!-- Card BUY -->
+                <div class="mockup-card">
+                    <div class="mockup-card-bar buy"></div>
+                    <div class="mockup-card-body">
+                        <div class="mockup-card-top">
+                            <div class="mockup-coin-icon">
+                                <img src="https://s3-symbol-logo.tradingview.com/crypto/XTVCBTC.svg" alt="BTC">
+                            </div>
+                            <span class="mockup-sym">BTCUSDT</span>
+                            <div class="mockup-badges">
+                                <span class="mockup-badge buy">▲ BUY</span>
+                                <span class="mockup-badge tf">15m</span>
+                            </div>
+                        </div>
+                        <div class="mockup-price-row">
+                            <div class="mockup-pbox">
+                                <div class="mockup-plbl">Signal</div>
+                                <div class="mockup-pval g">$83,420</div>
+                            </div>
+                            <div class="mockup-pbox">
+                                <div class="mockup-plbl">Live</div>
+                                <div class="mockup-pval">$84,115</div>
+                                <div class="mockup-pchange up">▲ +0.83%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Card SELL -->
+                <div class="mockup-card">
+                    <div class="mockup-card-bar sell"></div>
+                    <div class="mockup-card-body">
+                        <div class="mockup-card-top">
+                            <div class="mockup-coin-icon">
+                                <img src="https://s3-symbol-logo.tradingview.com/crypto/XTVCETH.svg" alt="ETH">
+                            </div>
+                            <span class="mockup-sym">ETHUSDT</span>
+                            <div class="mockup-badges">
+                                <span class="mockup-badge sell">▼ SELL</span>
+                                <span class="mockup-badge tf">15m</span>
+                            </div>
+                        </div>
+                        <div class="mockup-price-row">
+                            <div class="mockup-pbox">
+                                <div class="mockup-plbl">Signal</div>
+                                <div class="mockup-pval r">$1,960</div>
+                            </div>
+                            <div class="mockup-pbox">
+                                <div class="mockup-plbl">Live</div>
+                                <div class="mockup-pval">$1,944</div>
+                                <div class="mockup-pchange up">▲ +0.82%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- STATS BAND -->
+<div class="stats-band z1 reveal">
+    <div class="stats-grid">
+        <div class="stat-cell">
+            <div class="stat-cell-num">24/7</div>
+            <div class="stat-cell-lbl">Always scanning</div>
+        </div>
+        <div class="stat-cell">
+            <div class="stat-cell-num">Fast</div>
+            <div class="stat-cell-lbl">Signal detection</div>
+        </div>
+        <div class="stat-cell">
+            <div class="stat-cell-num">Auto</div>
+            <div class="stat-cell-lbl">Background scanning</div>
+        </div>
+        <div class="stat-cell">
+            <div class="stat-cell-num">Free</div>
+            <div class="stat-cell-lbl">No subscription</div>
+        </div>
+    </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section z1" id="features">
+    <div class="section-eyebrow">Features</div>
+    <h2 class="section-title">Everything you need<br>to catch the move</h2>
+    <p class="section-sub">Brix runs in the background, constantly monitors Bybit markets, and notifies you the moment a breakout signal is detected.</p>
+
+    <div class="features-grid">
+        <div class="feat-card reveal" style="transition-delay:0s">
+            <div class="feat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>
+                </svg>
+            </div>
+            <div class="feat-title">Breakout Signal Detection</div>
+            <div class="feat-desc">Detects BUY and SELL signals using a proprietary algorithm across Bybit Futures and Spot pairs, updated in real-time.</div>
+        </div>
+
+        <div class="feat-card reveal" style="transition-delay:0.08s">
+            <div class="feat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <div class="feat-title">Real-time Live Prices</div>
+            <div class="feat-desc">Live price tracking from Bybit API with P&amp;L calculation — instantly see how each signal is performing right now.</div>
+        </div>
+
+        <div class="feat-card reveal" style="transition-delay:0.16s">
+            <div class="feat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+            </div>
+            <div class="feat-title">Push Notifications</div>
+            <div class="feat-desc">Get instantly notified when a new breakout signal appears — even when the app is in the background, with strong vibration alerts.</div>
+        </div>
+
+        <div class="feat-card reveal" style="transition-delay:0.24s">
+            <div class="feat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2"/>
+                    <line x1="8" y1="21" x2="16" y2="21"/>
+                    <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+            </div>
+            <div class="feat-title">Futures &amp; Spot</div>
+            <div class="feat-desc">Separate views for Futures and Spot markets. Switch instantly with the tab switcher to see only what you trade.</div>
+        </div>
+
+        <div class="feat-card reveal" style="transition-delay:0.32s">
+            <div class="feat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+            </div>
+            <div class="feat-title">TradingView Charts</div>
+            <div class="feat-desc">One tap to open the full TradingView chart for any signal — pre-loaded with the correct symbol and timeframe.</div>
+        </div>
+
+        <div class="feat-card reveal" style="transition-delay:0.40s">
+            <div class="feat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+            </div>
+            <div class="feat-title">Always Running</div>
+            <div class="feat-desc">Foreground service keeps Brix scanning even when your screen is off — restarts automatically after device reboot.</div>
+        </div>
+    </div>
+</section>
+
+<!-- SIGNAL DEMO -->
+<section class="signals-section z1">
+    <div class="signals-inner">
+        <div class="section-eyebrow reveal">Signal Preview</div>
+        <h2 class="section-title reveal">What a signal<br>looks like</h2>
+        <div class="signal-cards">
+            <div class="signal-demo reveal" style="transition-delay:0s">
+                <div class="signal-demo-bar buy"></div>
+                <div class="signal-demo-body">
+                    <div class="signal-demo-head">
+                        <div class="signal-demo-coin">
+                            <img src="https://s3-symbol-logo.tradingview.com/crypto/XTVCBTC.svg" alt="BTC">
+                        </div>
+                        <div>
+                            <div class="signal-demo-sym">BTCUSDT</div>
+                            <div class="signal-demo-badges">
+                                <span class="signal-demo-badge sdb-buy">▲ BUY</span>
+                                <span class="signal-demo-badge sdb-tf">15m</span>
+                                <span class="signal-demo-badge sdb-fut">FUTURES</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="signal-demo-price">
+                        <div class="sdp-box">
+                            <div class="sdp-lbl">Signal Price</div>
+                            <div class="sdp-val buy">$83,420</div>
+                        </div>
+                        <div class="sdp-box">
+                            <div class="sdp-lbl">Live Price</div>
+                            <div class="sdp-val">$84,115</div>
+                            <div class="sdp-chg up">▲ +0.83%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="signal-demo reveal" style="transition-delay:0.1s">
+                <div class="signal-demo-bar sell"></div>
+                <div class="signal-demo-body">
+                    <div class="signal-demo-head">
+                        <div class="signal-demo-coin">
+                            <img src="https://s3-symbol-logo.tradingview.com/crypto/XTVCETH.svg" alt="ETH">
+                        </div>
+                        <div>
+                            <div class="signal-demo-sym">ETHUSDT</div>
+                            <div class="signal-demo-badges">
+                                <span class="signal-demo-badge sdb-sell">▼ SELL</span>
+                                <span class="signal-demo-badge sdb-tf">15m</span>
+                                <span class="signal-demo-badge sdb-fut">FUTURES</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="signal-demo-price">
+                        <div class="sdp-box">
+                            <div class="sdp-lbl">Signal Price</div>
+                            <div class="sdp-val sell">$1,960</div>
+                        </div>
+                        <div class="sdp-box">
+                            <div class="sdp-lbl">Live Price</div>
+                            <div class="sdp-val">$1,944</div>
+                            <div class="sdp-chg up">▲ +0.82%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="signal-demo reveal" style="transition-delay:0.2s">
+                <div class="signal-demo-bar buy"></div>
+                <div class="signal-demo-body">
+                    <div class="signal-demo-head">
+                        <div class="signal-demo-coin">
+                            <img src="https://s3-symbol-logo.tradingview.com/crypto/XTVCSO.svg" alt="SOL">
+                        </div>
+                        <div>
+                            <div class="signal-demo-sym">SOLUSDT</div>
+                            <div class="signal-demo-badges">
+                                <span class="signal-demo-badge sdb-buy">▲ BUY</span>
+                                <span class="signal-demo-badge sdb-tf">15m</span>
+                                <span class="signal-demo-badge sdb-fut">SPOT</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="signal-demo-price">
+                        <div class="sdp-box">
+                            <div class="sdp-lbl">Signal Price</div>
+                            <div class="sdp-val buy">$131.40</div>
+                        </div>
+                        <div class="sdp-box">
+                            <div class="sdp-lbl">Live Price</div>
+                            <div class="sdp-val">$133.80</div>
+                            <div class="sdp-chg up">▲ +1.83%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section z1">
+    <div class="cta-inner reveal">
+        <h2 class="cta-title">Start catching breakouts today</h2>
+        <p class="cta-sub">Free to download. No account needed. Just install and Brix starts scanning immediately.</p>
+        <a href="https://github.com/suuf24/brix/raw/refs/heads/main/brix.apk" class="cta-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download Brix APK
+        </a>
+        <p class="cta-note">
+            Android 7.0 (API 24) and above ·
+            <a href="https://github.com/suuf24/brix" target="_blank" rel="noopener">View on GitHub</a>
+        </p>
+    </div>
+</section>
+
+<!-- DISCLAIMER -->
+<div class="disclaimer z1">
+    <div class="disclaimer-inner">
+        <svg class="disc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p>
+            Brix is a signal detection tool only. It does not constitute financial advice. All trading decisions are solely your responsibility. Past signal performance does not guarantee future results. Trade responsibly and only risk what you can afford to lose.
+        </p>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="z1">
+    <div class="footer-brand">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        Brix
+    </div>
+    <div class="footer-copy">© 2026 Brix · Free Android App</div>
+</footer>
+
+<script>
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+        if (e.isIntersecting) {
+            e.target.classList.add('visible');
+            observer.unobserve(e.target);
+        }
+    });
+}, { threshold: 0.12 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// SOL logo fix
+document.querySelectorAll('img[alt="SOL"]').forEach(img => {
+    img.src = 'https://s3-symbol-logo.tradingview.com/crypto/XTVCSOL.svg';
+});
+</script>
+</body>
+</html>
